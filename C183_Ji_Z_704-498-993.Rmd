@@ -1,0 +1,239 @@
+---
+title: "STAT_C183_Project"
+author: "Zhe Ji (704-498-993)"
+output: pdf_document
+---
+
+For this project, I chose 28 stocks from 5 industries using the data from Yahoo Finance (http://biz.yahoo.com/ic/ind_index.html). First, I built models and construct portfolios using data from 2007-12-31 to 2012-12-31. Later, For the second part, I used the models based on the historical data to predict portfolio performance from 2012-12-31 to 2015-3-31.
+
+```{r}
+library(stockPortfolio)
+ticker <- c("ATO","NJR","PNY","TGS","ORCL","SAP","CSCO","HPQ","FDS","SNDK","ACUR","INFI",
+            "THC","BIOS","CRDC", "KSS", "NPD", "IDI","COST","LRN","WFM","AAL","DIS",
+            "AAPL","SNE","PG","PEP","NKE","^GSPC")
+industry <- c(rep("Gas",4), rep("Technology",6), rep("Healthcare",5), rep("Services", 8),
+              rep("Consumer Goods", 5),"index")
+gr1 <- getReturns(ticker, start='2007-12-31', end='2012-12-31')
+data <- as.data.frame(cbind(ticker, industry))
+data
+```
+
+Part A : constructing optimal portfolios
+
+1. Assume short sales are allowed. Choose an appropriate value of Rf to find the composition of the point of tangency (use the classical Markowitz model). Also compute the expected return and standard deviation of the point of tangency. Draw the line and show the point of tangency on the line.
+
+```{r}
+m1 <- stockModel(gr1, drop=29, Rf=-0.05)
+(op1  <- optimalPort(m1))
+plot(op1)
+slope <- (op1$R+0.05)/op1$risk
+segments(0,-0.05,2*op1$risk, m1$Rf+slope*2*op1$risk)
+text(0.015, 0.015, "G")
+```
+
+2. Refer to part (1). Choose two values of Rf to trace out the efficient frontier.
+
+```{r}
+#Rf=-0.05
+m1 <- stockModel(gr1, drop=29, Rf=-0.05)
+op1  <- optimalPort(m1)
+plot(op1)
+portPossCurve(m1, add=TRUE, , col="blue", lwd=2)
+#Rf=-1
+m1.2 <- stockModel(gr1, drop=29, Rf=-1)
+op1.2  <- optimalPort(m1.2)
+portPossCurve(m1, add=TRUE, , col="green")
+legend("bottomright", lty=1, c("Rf=-0.05","Rf=-1"), col=c("blue","green"), cex=0.8)
+```
+
+Two Rf's give the same efficient frontier.
+
+3. Equally allocate your funds into your stocks. Calculate the expected return and standard deviation of this portfolio (use historical means and standard deviations).
+
+```{r}
+means <- colMeans(as.data.frame(gr1$R[,-29]))
+var_cov <- cov(gr1$R[,-29])
+x_equal <- rep(1,28)/28
+Rbar_equal <- t(x_equal) %*% means
+sd_equal <- (t(x_equal) %*% var_cov %*% x_equal)^0.5
+equ <- cbind(Rbar_equal, sd_equal)
+colnames(equ) <- c("Expected Return", "Standard Deviation")
+equ
+```
+
+4. Assume that the single index model holds and that risk-free lending and borrowing exists. Use the excess return to beta (you can work with unadjusted or adjusted betas) ratio to find:
+
+a. The composition of the optimum portfolio, its expected return, and its standard deviation when short sales are not allowed.
+
+```{r}
+sim2 <- stockModel(gr1, model='SIM', index=29, shortSelling=FALSE)
+opsim2 <- optimalPort(sim2)
+opsim2
+```
+
+Only 10 stocks, "ATO", "NJR", "PNY", "INFI", "THC", "BIOS", "WFM", "AAL", "AAPL", "NKE" are used in the single index model when short sales are not allowed.
+
+b. The alpha and beta of the optimum portfolio of part (a).
+
+```{r}
+sim <- cbind(sim2$alpha, sim2$beta)
+colnames(sim) <- c("alpha","beta")
+sim
+```
+
+c. Repeat (a) and (b) when short sales are allowed.
+
+```{r}
+sim1 <- stockModel(gr1, model='SIM', index=29)
+opsim1 <- optimalPort(sim1)
+opsim1
+```
+
+The alpha's and beta's for each stock when short sales are allowed are as same as those ones when short sales are not allowed.
+
+
+
+5. Use the constant correlation model and the same risk-free rate as in part (4). Based on the excess return to standard deviation ratio find:
+
+a. The composition of the optimum portfolio, its expected return, and its standard deviation when short sales are not allowed.
+
+```{r}
+smccm2  <- stockModel(gr1, model='CCM', drop=29, shortSelling=FALSE)
+opccm2 <- optimalPort(smccm2)
+opccm2
+```
+
+Only 11 stocks, "ATO", "NJR", "PNY", "SAP", "INFI", "THC", "COST", "WFM", "DIS", "AAPL", "NKE" are used in the constant correlation model when short sales are not allowed.
+
+
+b. Repeat (a) when short sales are allowed.
+
+```{r}
+smccm1  <- stockModel(gr1, model='CCM', drop=29)
+opccm1 <- optimalPort(smccm1)
+opccm1
+```
+
+6. Use the multigroup model, short sales allowed, and the same risk free rate as in (4) and (5), to find the composition of the optimum portfolio, its expected return, and its standard deviation.
+
+```{r}
+mg  <- stockModel(gr1, model='MGM', drop=29, industry=industry)
+opmg <- optimalPort(mg)
+opmg
+```
+
+7. Place all the stocks you have used and all the portfolios you have constructed on the space expected return against standard deviation.
+
+```{r}
+plot(op1, xlim=c(0,0.3), ylim=c(0,0.065), cex= 0.5, pch=15, col="black")
+points(op1$risk, op1$R, pch=16, col="red")
+points(sd_equal, Rbar_equal, pch=17, col="orange")
+points(opsim2$risk, opsim2$R, pch=18, col="green")
+points(opsim1$risk, opsim1$R, pch=19, col="blue")
+points(opccm2$risk, opccm2$R, pch=20, col="yellow")
+points(opccm1$risk, opccm1$R, pch=21, col="purple")
+points(opmg$risk, opmg$R, pch=22, col="grey")
+legend('topright', c('stock', 'Markowitz', 'Equal', 'SIM_NSS', 
+                     'SIM_SS', 'CCM_NSS', 'CCM_SS', 'MGM_SS'), 
+       col=c("black", "red", "orange", "green", "blue", 
+             "yellow", "purple", "grey"), pch=15:22, cex=0.5)
+```
+
+
+Part B : portfolio performance
+
+Compute now the monthly returns for each stock for the period 31-Dec-2012 to 31-Mar-2015 and use them to compute the monthly return for each of the following portfolios that you have constructed above:
+
+```{r}
+gr2 <- getReturns(ticker, start='2012-12-31', end='2015-3-31')
+```
+
+
+a. Equal allocation (part 3).
+
+```{r,warning=FALSE}
+tpEqu <- testPort(gr2$R[,-29], X=rep(1,28)/28)
+x_equal <- rep(1,28)/28
+new_R_equ <- as.data.frame(tpEqu$returns %*% x_equal)
+colnames(new_R_equ) <- "portfolio return"
+new_R_equ
+```
+
+b. Single index model with no short sales allowed (part 4a).
+
+```{r,warning=FALSE}
+tpopsim2 <- testPort(gr2, opsim2)
+new_R_sim <- as.data.frame(tpopsim2$returns %*% tpopsim2$X)
+colnames(new_R_sim) <- "portfolio return"
+new_R_sim
+```
+
+c. A portfolio that consists of 50% of the portfolio of part 4a and 50% of the risk free asset.
+
+```{r,warning=FALSE}
+Rf <- 0.001
+tpC <- testPort((gr2$R[,-29]+Rf)/2, X=rep(1,28)/28)
+new_R_c <- as.data.frame(tpC$returns %*% x_equal)
+colnames(new_R_c) <- "portfolio return"
+new_R_c
+```
+
+d. Constant correlation model with no short sales allowed (part 5a).
+
+```{r,warning=FALSE}
+tpopccm2 <- testPort(gr2, opccm2)
+new_R_ccm <- as.data.frame(tpopccm2$returns %*% tpopccm2$X)
+colnames(new_R_ccm) <- "portfolio return"
+new_R_ccm
+```
+
+e. Multigroup model (part 6).
+
+```{r,warning=FALSE}
+tpopmg <- testPort(gr2, opmg)
+new_R_mg <- as.data.frame(tpopmg$returns %*% tpopmg$X)
+colnames(new_R_mg) <- "portfolio return"
+new_R_mg
+```
+
+Plot the returns of portfolios (a-e) on the space return against time for the period 31-Jan-2012 to 31-Mar-2015.
+Also on the same graph plot the return of the market S&P500.
+
+```{r}
+plot(tpEqu, lty=6, ylim=c(0.4, 1.8), ylab="Expected Return", xlab="Time", xaxt="n", col="pink")
+axis(1, at=seq(0, 36, by=12),labels=seq(2013, 2016, by=1))
+lines(tpopsim2, lty=5, col="green")
+lines(tpC, lty=4, col="blue")
+lines(tpopccm2, lty=3, col="yellow")
+lines(tpopmg, lty=2, col="purple")
+lines(cumprod(1+rev(gr2$R[,29])), col="black", lty=1)
+legend('topleft', c('Equal', 'SIM_NSS', '50%Equal+50%Rf',
+                    'CCM_NSS','MGM_SS','S&P500'), 
+       col=c("pink", "green", "blue", "yellow", 
+             "purple", "black"),
+       lty=6:1, cex=0.6)
+```
+
+Which of these portfolios performed the best (highest return)?
+Which portfolio was the worst (lowest return).
+What is the average return of each portfolio in this period (31-Jan-2012 to 31-Mar-2015)?
+Compare the performance of each portfolio with the market S&P500. Write 1-2 paragraphs discussing your findings.
+
+```{r}
+Rbar_equ <- colMeans(new_R_equ)
+Rbar_sim <- colMeans(new_R_sim)
+Rbar_c <- colMeans(new_R_c)
+Rbar_ccm <- colMeans(new_R_ccm)
+Rbar_mg <- colMeans(new_R_mg)
+cbind(Rbar_equ,Rbar_sim,Rbar_c,Rbar_ccm,Rbar_mg)
+```
+
+The equal allocation portfolio performed the best.
+The multigroup model portfolio performed the worst.
+
+Only the equal allocation portfolio outcompeted the market S&P500 throughout the prediction period. The equal allocation strategy performed better in most time of 2013 and in 2015.
+The Single Index Model (shortsales not allowed) and Constant Correlation Model (shortsales not allowed) performed similarly. Both of them beat the market only for a short time in the first season in 2013 and they both performed better than the market in 2015.
+The combination of the equal allocation and risk free asset performed worse than the market and was the most stable one throughout the prediction period.
+Unlike other portfolios and the market which we could detect the comparably stable and increasing trend, the Multi-Group Model had the most volatility and permored far worse than any portfolio or the market.
+
+Possible reason for this graph might be that I randomly picked 28 stocks in 5 industries, which included both leaders and laggards and they counteracted with each other. In this case, the equal allocation strategy, the Single Index Model (shortsales not allowed), Constant Correlation Model (shortsales not allowed) actually simulated the market S&P500.
