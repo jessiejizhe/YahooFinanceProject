@@ -8,3 +8,5 @@ I chose 28 stocks from 5 industries using the data from Yahoo Finance (http://bi
 Later, I used the models based on the historical data to predict portfolio performance from 2012-12-31 to 2015-3-31.
 
 Throughout the project, I explored equal allocation, (**EA**) single index model (**SIM**), constant correlation model (**CCM**) and multigroup model (**MM**).
+
+Specifically, stockPortfolio package in R is used for calculation.
